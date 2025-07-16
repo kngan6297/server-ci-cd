@@ -1,18 +1,47 @@
-name: Docker Image CI
+name: Node.js CI/CD
 
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    branches: [master]  # đổi thành 'main' nếu repo của bạn dùng main
 
 jobs:
-
-  build:
-
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      - name: Lấy code từ GitHub
+        uses: actions/checkout@v4
+
+      - name: Thiết lập Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cài đặt thư viện
+        run: npm install
+
+      - name: Build Docker image
+        run: docker build -t my-express-app .
+
+      - name: Đăng nhập Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Tag & Push image
+        run: |
+          IMAGE=${{ secrets.DOCKER_USERNAME }}/my-express-app:latest
+          docker tag my-express-app $IMAGE
+          docker push $IMAGE
+
+      - name: SSH Deploy to VPS (using password)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            docker pull ${{ secrets.DOCKER_USERNAME }}/my-express-app:latest
+            docker stop my-express-app || true
+            docker rm my-express-app || true
+            docker run -d --name my-express-app -p 4031:4031 ${{ secrets.DOCKER_USERNAME }}/my-express-app:latest

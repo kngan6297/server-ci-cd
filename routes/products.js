@@ -1,8 +1,22 @@
 const express = require("express");
 const { body, validationResult } = require("express-validator");
+const mongoose = require("mongoose");
 const Product = require("../models/Product");
 
 const router = express.Router();
+
+// Database connection check middleware
+const checkDBConnection = (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      error: "Database connection not available",
+      message:
+        "Please ensure MongoDB is running or check your connection string",
+      status: "service_unavailable",
+    });
+  }
+  next();
+};
 
 // Validation middleware
 const validateProduct = [
@@ -39,7 +53,7 @@ const validateProduct = [
 ];
 
 // GET all products
-router.get("/", async (req, res) => {
+router.get("/", checkDBConnection, async (req, res) => {
   try {
     const {
       page = 1,
@@ -80,12 +94,13 @@ router.get("/", async (req, res) => {
       total,
     });
   } catch (error) {
+    console.error("Error fetching products:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // GET single product by ID
-router.get("/:id", async (req, res) => {
+router.get("/:id", checkDBConnection, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
 
@@ -98,12 +113,13 @@ router.get("/:id", async (req, res) => {
     if (error.kind === "ObjectId") {
       return res.status(400).json({ error: "Invalid product ID" });
     }
+    console.error("Error fetching product:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST create new product
-router.post("/", validateProduct, async (req, res) => {
+router.post("/", checkDBConnection, validateProduct, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -115,12 +131,13 @@ router.post("/", validateProduct, async (req, res) => {
 
     res.status(201).json(savedProduct);
   } catch (error) {
+    console.error("Error creating product:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // PUT update product
-router.put("/:id", validateProduct, async (req, res) => {
+router.put("/:id", checkDBConnection, validateProduct, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -141,12 +158,13 @@ router.put("/:id", validateProduct, async (req, res) => {
     if (error.kind === "ObjectId") {
       return res.status(400).json({ error: "Invalid product ID" });
     }
+    console.error("Error updating product:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // PATCH partial update product
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", checkDBConnection, async (req, res) => {
   try {
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
@@ -162,12 +180,13 @@ router.patch("/:id", async (req, res) => {
     if (error.kind === "ObjectId") {
       return res.status(400).json({ error: "Invalid product ID" });
     }
+    console.error("Error updating product:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // DELETE product (soft delete)
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", checkDBConnection, async (req, res) => {
   try {
     const product = await Product.findByIdAndUpdate(
       req.params.id,
@@ -184,16 +203,18 @@ router.delete("/:id", async (req, res) => {
     if (error.kind === "ObjectId") {
       return res.status(400).json({ error: "Invalid product ID" });
     }
+    console.error("Error deleting product:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // GET categories
-router.get("/categories/list", async (req, res) => {
+router.get("/categories/list", checkDBConnection, async (req, res) => {
   try {
     const categories = await Product.distinct("category");
     res.json(categories);
   } catch (error) {
+    console.error("Error fetching categories:", error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -44,4 +44,4 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/my-express-app:latest
             docker stop my-express-app || true
             docker rm my-express-app || true
-            docker run -d --name my-express-app -p 4031:4031 ${{ secrets.DOCKER_USERNAME }}/my-express-app:latest
+            docker run -d --name my-express-app -p 6789:6789 ${{ secrets.DOCKER_USERNAME }}/my-express-app:latest
